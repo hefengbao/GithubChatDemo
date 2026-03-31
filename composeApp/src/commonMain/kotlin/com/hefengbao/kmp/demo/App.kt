@@ -18,12 +18,15 @@ import org.jetbrains.compose.resources.painterResource
 
 import kmpdemo.composeapp.generated.resources.Res
 import kmpdemo.composeapp.generated.resources.compose_multiplatform
+import com.hefengbao.kmp.demo.calendar.CalendarScreen
 
 @Composable
 @Preview
 fun App() {
     MaterialTheme {
         var showContent by remember { mutableStateOf(false) }
+        var showCalendar by remember { mutableStateOf(false) }
+        val repository = rememberEventRepository()
         Column(
             modifier = Modifier
                 .background(MaterialTheme.colorScheme.primaryContainer)
@@ -43,6 +46,15 @@ fun App() {
                     Image(painterResource(Res.drawable.compose_multiplatform), null)
                     Text("Compose: $greeting")
                 }
+            }
+            Button(onClick = { showCalendar = !showCalendar }) {
+                Text(if (showCalendar) "隐藏日程管理" else "打开日程管理")
+            }
+            AnimatedVisibility(showCalendar) {
+                CalendarScreen(
+                    repository = repository,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
     }
