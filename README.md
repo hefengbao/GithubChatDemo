@@ -1,53 +1,48 @@
-# GithubChatDemo
+This is a Kotlin Multiplatform project targeting Android, iOS, Desktop (JVM).
 
-这是一个 Kotlin Multiplatform + Compose Multiplatform 示例工程，包含以下目标平台：
+* [/composeApp](./composeApp/src) is for code that will be shared across your Compose Multiplatform applications.
+  It contains several subfolders:
+  - [commonMain](./composeApp/src/commonMain/kotlin) is for code that’s common for all targets.
+  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
+    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
+    the [iosMain](./composeApp/src/iosMain/kotlin) folder would be the right place for such calls.
+    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./composeApp/src/jvmMain/kotlin)
+    folder is the appropriate location.
 
-- Android
-- iOS (iosX64 / iosArm64 / iosSimulatorArm64)
-- JVM Desktop
+* [/iosApp](./iosApp/iosApp) contains iOS applications. Even if you’re sharing your UI with Compose Multiplatform,
+  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
 
-## 环境要求
+### Build and Run Android Application
 
-- JDK 17+
-- Android Studio（用于 Android 与 iOS 开发体验）
-- Xcode（仅 macOS，构建与运行 iOS 目标时需要）
+To build and run the development version of the Android app, use the run configuration from the run widget
+in your IDE’s toolbar or build it directly from the terminal:
+- on macOS/Linux
+  ```shell
+  ./gradlew :composeApp:assembleDebug
+  ```
+- on Windows
+  ```shell
+  .\gradlew.bat :composeApp:assembleDebug
+  ```
 
-## 快速开始
+### Build and Run Desktop (JVM) Application
 
-### 1) 构建项目
+To build and run the development version of the desktop app, use the run configuration from the run widget
+in your IDE’s toolbar or run it directly from the terminal:
+- on macOS/Linux
+  ```shell
+  ./gradlew :composeApp:run
+  ```
+- on Windows
+  ```shell
+  .\gradlew.bat :composeApp:run
+  ```
 
-```bash
-./gradlew build
-```
+### Build and Run iOS Application
 
-### 2) 运行 JVM Desktop
+To build and run the development version of the iOS app, use the run configuration from the run widget
+in your IDE’s toolbar or open the [/iosApp](./iosApp) directory in Xcode and run it from there.
 
-```bash
-./gradlew :composeApp:run
-```
+---
 
-### 3) 运行 Android
-
-在 Android Studio 中打开项目后，选择 Android 运行目标执行。
-
-也可以使用命令行构建 APK：
-
-```bash
-./gradlew :androidApp:assembleDebug
-```
-
-### 4) 构建 iOS Framework
-
-在 macOS 上执行：
-
-```bash
-./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64
-```
-
-## 项目结构
-
-- `androidApp`：Android 应用入口模块
-- `composeApp`：共享 UI 与多平台目标配置（作为共享库）
-- `composeApp/src/commonMain`：跨平台共享 Compose 代码
-- `composeApp/src/iosMain`：iOS 入口
-- `composeApp/src/jvmMain`：JVM Desktop 入口
+Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)…
