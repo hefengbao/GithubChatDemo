@@ -39,17 +39,13 @@ import com.hefengbao.kmp.demo.calendar.domain.Event
 import com.hefengbao.kmp.demo.calendar.repo.EventRepository
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
-import kotlinx.datetime.DateTimeUnit
 import kotlin.time.Instant
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.Month
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
-import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
-import kotlinx.datetime.atStartOfDayIn
 
 // ── Navigation state ─────────────────────────────────────────────────────────
 
@@ -329,10 +325,13 @@ private fun EventEditScreen(
     var originalEvent by remember { mutableStateOf<Event?>(null) }
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var startAtStr by remember { mutableStateOf("") }
-    var endAtStr by remember { mutableStateOf("") }
     var allDay by remember { mutableStateOf(false) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
+
+    // Use epoch millis directly so picker composables can round-trip without string parsing
+    val nowMs = remember { Clock.System.now().toEpochMilliseconds() }
+    var startAtMillis by remember { mutableStateOf(nowMs) }
+    var endAtMillis by remember { mutableStateOf(nowMs + 3_600_000L) }  // default +1 hour
 
     LaunchedEffect(eventId) {
         if (eventId != null) {
@@ -341,18 +340,12 @@ private fun EventEditScreen(
                 originalEvent = e
                 title = e.title
                 description = e.description
-                startAtStr = formatMillis(e.startAtEpochMillis, tz)
-                endAtStr = formatMillis(e.endAtEpochMillis, tz)
+                startAtMillis = e.startAtEpochMillis
+                endAtMillis = e.endAtEpochMillis
                 allDay = e.allDay
             }
-        } else {
-            val now = Clock.System.now().toLocalDateTime(tz)
-            startAtStr = formatLocalDateTime(now)
-            val endHour = (now.hour + 1).coerceAtMost(23)
-            endAtStr = formatLocalDateTime(
-                LocalDateTime(now.year, now.month, now.day, endHour, 0),
-            )
         }
+        // For new events the remember-defaults above are already correct
     }
 
     Column(
@@ -392,38 +385,33 @@ private fun EventEditScreen(
             Spacer(Modifier.width(4.dp))
             Text("全天事件", style = MaterialTheme.typography.bodyMedium)
         }
-
-        if (!allDay) {
-            Spacer(Modifier.height(4.dp))
-            OutlinedTextField(
-                value = startAtStr,
-                onValueChange = { startAtStr = it },
-                label = { Text("开始时间 (YYYY-MM-DD HH:mm)") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = endAtStr,
-                onValueChange = { endAtStr = it },
-                label = { Text("结束时间 (YYYY-MM-DD HH:mm)") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
-            Spacer(Modifier.height(8.dp))
-        }
+        Spacer(Modifier.height(4.dp))
 
         if (allDay) {
-            Spacer(Modifier.height(4.dp))
-            OutlinedTextField(
-                value = startAtStr.substringBefore(' '),
-                onValueChange = { startAtStr = it },
-                label = { Text("日期 (YYYY-MM-DD)") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
+            // All-day events only need a date selection
+            DateField(
+                label = "日期",
+                valueMillis = startAtMillis,
+                timeZone = tz,
+                onValueChange = { startAtMillis = it },
+            )
+        } else {
+            // Non-all-day events need a date + time for both start and end
+            DateTimeField(
+                label = "开始时间",
+                valueMillis = startAtMillis,
+                timeZone = tz,
+                onValueChange = { startAtMillis = it },
             )
             Spacer(Modifier.height(8.dp))
+            DateTimeField(
+                label = "结束时间",
+                valueMillis = endAtMillis,
+                timeZone = tz,
+                onValueChange = { endAtMillis = it },
+            )
         }
+        Spacer(Modifier.height(8.dp))
 
         errorMsg?.let { msg ->
             Text(
@@ -443,27 +431,20 @@ private fun EventEditScreen(
                         return@Button
                     }
 
-                    val nowMs = Clock.System.now().toEpochMilliseconds()
+                    val saveMs = Clock.System.now().toEpochMilliseconds()
 
                     val startMs: Long
                     val endMs: Long
                     if (allDay) {
-                        val date = parseDateOnly(startAtStr) ?: run {
-                            errorMsg = "请输入有效的日期 (YYYY-MM-DD)"
-                            return@Button
-                        }
+                        // Derive the selected local date and compute day-range boundaries
+                        val date = Instant.fromEpochMilliseconds(startAtMillis)
+                            .toLocalDateTime(tz).date
                         startMs = date.atStartOfDayIn(tz).toEpochMilliseconds()
                         endMs = date.plus(1, DateTimeUnit.DAY)
                             .atStartOfDayIn(tz).toEpochMilliseconds() - 1
                     } else {
-                        startMs = parseMillisFromString(startAtStr, tz) ?: run {
-                            errorMsg = "开始时间格式错误，请使用 YYYY-MM-DD HH:mm"
-                            return@Button
-                        }
-                        endMs = parseMillisFromString(endAtStr, tz) ?: run {
-                            errorMsg = "结束时间格式错误，请使用 YYYY-MM-DD HH:mm"
-                            return@Button
-                        }
+                        startMs = startAtMillis
+                        endMs = endAtMillis
                         if (endMs < startMs) {
                             errorMsg = "结束时间不能早于开始时间"
                             return@Button
@@ -471,8 +452,8 @@ private fun EventEditScreen(
                     }
 
                     errorMsg = null
-                    val id = eventId ?: "event-$nowMs"
-                    val createdAt = originalEvent?.createdAtEpochMillis ?: nowMs
+                    val id = eventId ?: "event-$saveMs"
+                    val createdAt = originalEvent?.createdAtEpochMillis ?: saveMs
 
                     scope.launch {
                         repository.upsert(
@@ -484,7 +465,7 @@ private fun EventEditScreen(
                                 endAtEpochMillis = endMs,
                                 allDay = allDay,
                                 createdAtEpochMillis = createdAt,
-                                updatedAtEpochMillis = nowMs,
+                                updatedAtEpochMillis = saveMs,
                             ),
                         )
                         onSaved()
@@ -496,45 +477,3 @@ private fun EventEditScreen(
         }
     }
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/** Format an epoch-millis timestamp as "YYYY-MM-DD HH:mm" in [tz]. */
-private fun formatMillis(millis: Long, tz: TimeZone): String {
-    val dt = Instant.fromEpochMilliseconds(millis).toLocalDateTime(tz)
-    return formatLocalDateTime(dt)
-}
-
-/** Format a [LocalDateTime] as "YYYY-MM-DD HH:mm". */
-private fun formatLocalDateTime(dt: LocalDateTime): String =
-    "${dt.year.pad(4)}-${(dt.month.ordinal + 1).pad()}-${dt.day.pad()} ${dt.hour.pad()}:${dt.minute.pad()}"
-
-/** Parse "YYYY-MM-DD HH:mm" → epoch millis, or null on failure. */
-private fun parseMillisFromString(str: String, tz: TimeZone): Long? = try {
-    val trimmed = str.trim()
-    val spaceIdx = trimmed.indexOf(' ')
-    if (spaceIdx < 0) return null
-    val datePart = trimmed.substring(0, spaceIdx).split("-")
-    val timePart = trimmed.substring(spaceIdx + 1).split(":")
-    if (datePart.size < 3 || timePart.size < 2) return null
-    LocalDateTime(
-        year = datePart[0].toInt(),
-        month = Month(datePart[1].toInt()),
-        day = datePart[2].toInt(),
-        hour = timePart[0].toInt(),
-        minute = timePart[1].toInt(),
-    ).toInstant(tz).toEpochMilliseconds()
-} catch (_: Exception) {
-    null
-}
-
-/** Parse "YYYY-MM-DD" or the date portion of "YYYY-MM-DD HH:mm" → [LocalDate], or null on failure. */
-private fun parseDateOnly(str: String): LocalDate? = try {
-    val datePart = str.trim().substringBefore(' ').split("-")
-    if (datePart.size < 3) null
-    else LocalDate(datePart[0].toInt(), datePart[1].toInt(), datePart[2].toInt())
-} catch (_: Exception) {
-    null
-}
-
-private fun Int.pad(length: Int = 2): String = toString().padStart(length, '0')
