@@ -12,7 +12,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 /**
- * Room-backed implementation of [EventRepository] for Android.
+ * Room-backed implementation of [EventRepository] for Android and JVM Desktop.
  * Converts between [EventEntity] (persistence layer) and [Event] (domain layer).
  *
  * Recurrence rules and reminders are stored as JSON strings for this iteration.

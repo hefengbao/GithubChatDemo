@@ -38,12 +38,17 @@ kotlin {
             implementation(libs.room.runtime)
             implementation(libs.koin.core)
         }
+        jvmMain.dependencies {
+            // BundledSQLiteDriver for Room on JVM Desktop
+            implementation(libs.sqlite.bundled)
+        }
     }
 }
 
-// Room KSP code generation for Android only; iOS/JVM use InMemoryEventRepository
+// Room KSP code generation for Android and JVM (native iOS uses FileBackedEventRepository)
 dependencies {
     add("kspAndroid", libs.room.compiler)
+    add("kspJvm", libs.room.compiler)
 }
 
 android {
