@@ -65,6 +65,7 @@ private sealed interface Screen {
 fun CalendarScreen(
     repository: EventRepository,
     modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = null,
 ) {
     var screen: Screen by remember { mutableStateOf(Screen.DayList) }
 
@@ -73,6 +74,7 @@ fun CalendarScreen(
             repository = repository,
             onEventClick = { screen = Screen.EventDetail(it) },
             onNewEvent = { screen = Screen.EventEdit(null) },
+            onBack = onBack,
             modifier = modifier,
         )
 
@@ -102,6 +104,7 @@ private fun DayListScreen(
     repository: EventRepository,
     onEventClick: (String) -> Unit,
     onNewEvent: () -> Unit,
+    onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val tz = TimeZone.currentSystemDefault()
@@ -124,6 +127,10 @@ private fun DayListScreen(
             .fillMaxSize()
             .padding(16.dp),
     ) {
+        if (onBack != null) {
+            TextButton(onClick = onBack) { Text("← 返回首页") }
+            Spacer(Modifier.height(4.dp))
+        }
         Text(
             text = "日程管理",
             style = MaterialTheme.typography.headlineMedium,
