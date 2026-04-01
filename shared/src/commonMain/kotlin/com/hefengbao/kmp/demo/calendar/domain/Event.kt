@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
  * Domain model representing a calendar event.
  * Contains cloud-sync redundancy fields (createdAt/updatedAt, deleted, dirty, serverVersion).
  */
+@Serializable
 data class Event(
     val id: String,
     val title: String,
